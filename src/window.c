@@ -203,6 +203,8 @@ bool manage_window(xcb_window_t win, rule_consequence_t *csq, int fd)
 	} else {
 		hide_node(d, n);
 	}
+	
+	window_customized_border(n);
 
 	ewmh_update_client_list(false);
 	ewmh_set_wm_desktop(n, d);
@@ -323,7 +325,7 @@ void draw_presel_feedback(monitor_t *m, desktop_t *d, node_t *n)
 
 	window_move_resize(p->feedback, n->rectangle.x + presel_rect.x, n->rectangle.y + presel_rect.y,
 	                   presel_rect.width, presel_rect.height);
-
+	window_customized_border(n);
 	if (!exists && m->desk == d) {
 		window_show(p->feedback);
 	}
@@ -423,7 +425,7 @@ void window_customized_border(node_t *n)
 	// must be under window border width
 	uint16_t border_left = 0;
 	uint16_t border_right = 0;
-	uint16_t border_top = 10;
+	uint16_t border_top = 0;
 	uint16_t border_bottom = 10;
 
     // get window geometry
