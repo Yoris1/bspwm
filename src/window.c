@@ -416,6 +416,62 @@ void draw_border(node_t *n, bool focused_node, bool focused_monitor)
 	}
 }
 
+void window_rounded_border(node_t *n)
+{
+    xcb_window_t win = n->id;
+
+    // get window geometry
+	xcb_get_geometry_reply_t *geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, win), NULL);
+    if (geo == NULL) return;
+ 
+    uint16_t x  = geo->x;
+    uint16_t y  = geo->y;
+	uint16_t w  = geo->width;
+    uint16_t h  = geo->height;
+
+    uint16_t bw = geo->border_width;
+
+	uint16_t ow  = w+2*bw;
+	uint16_t oh  = h+2*bw;
+
+	free(geo);
+
+
+	// create pixmap
+    xcb_pixmap_t bpid = xcb_generate_id(dpy); // mask pixmap
+    xcb_create_pixmap(dpy, 1, bpid, win, ow, oh); // creating pixmap for border; You can't draw outside of window size + border size!
+
+	// create opaque color
+    xcb_gcontext_t white = xcb_generate_id(dpy);
+    xcb_create_gc(dpy, white, bpid, XCB_GC_FOREGROUND, (uint32_t[]){1, 0});
+
+	// draw border mask 
+    xcb_rectangle_t bounding = {0, 0, w+2*bw, h+2*bw}; // entire window + border, offset in xcb_shape_mask
+    xcb_poly_fill_rectangle(dpy, bpid, white, 1, &bounding);
+
+
+	uint16_t border_left = 0;
+	uint16_t border_right = 10;
+	uint16_t border_top = 0;
+	uint16_t border_bottom = 0;
+
+    xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,  win, 0, -bw, bpid); // applies mask to window border!
+
+
+    if (n->presel != NULL && n->presel != XCB_NONE) {
+        xcb_window_t fb = n->presel->feedback;
+        xcb_get_geometry_reply_t *fb_geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, fb), NULL);
+
+        if (fb_geo != NULL) {
+            xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING, fb, x-fb_geo->x, y-fb_geo->y, bpid);
+            free(fb_geo);
+        }
+    }
+
+    xcb_free_pixmap(dpy, bpid);
+}
+
+
 void window_draw_border(xcb_window_t win, uint32_t border_color_pxl)
 {
 	xcb_change_window_attributes(dpy, win, XCB_CW_BORDER_PIXEL, &border_color_pxl);
@@ -618,6 +674,7 @@ bool resize_client(coordinates_t *loc, resize_handle_t rh, int dx, int dy, bool 
 		n->client->floating_rectangle = (xcb_rectangle_t) {x, y, width, height};
 		if (n->client->state == STATE_FLOATING) {
 			window_move_resize(n->id, x, y, width, height);
+				window_rounded_border(n);
 
 			if (!grabbing) {
 				put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc->monitor->id, loc->desktop->id, loc->node->id, width, height, x, y);
@@ -824,7 +881,7 @@ void disable_motion_recorder(void)
 
 void window_border_width(xcb_window_t win, uint32_t bw)
 {
-	uint32_t values[] = {bw};
+	uint32_t values[] = {10};
 	xcb_configure_window(dpy, win, XCB_CONFIG_WINDOW_BORDER_WIDTH, values);
 }
 
