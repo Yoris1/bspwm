@@ -416,23 +416,27 @@ void draw_border(node_t *n, bool focused_node, bool focused_monitor)
 	}
 }
 
-void window_rounded_border(node_t *n)
+void window_customized_border(node_t *n)
 {
     xcb_window_t win = n->id;
+
+	// must be under window border width
+	uint16_t border_left = 0;
+	uint16_t border_right = 0;
+	uint16_t border_top = 10;
+	uint16_t border_bottom = 10;
 
     // get window geometry
 	xcb_get_geometry_reply_t *geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, win), NULL);
     if (geo == NULL) return;
- 
+	
     uint16_t x  = geo->x;
     uint16_t y  = geo->y;
 	uint16_t w  = geo->width;
     uint16_t h  = geo->height;
 
-    uint16_t bw = geo->border_width;
-
-	uint16_t ow  = w+2*bw;
-	uint16_t oh  = h+2*bw;
+	uint16_t ow  = w+2*border_left+border_right;
+	uint16_t oh  = h+2*border_top+border_bottom;
 
 	free(geo);
 
@@ -446,18 +450,14 @@ void window_rounded_border(node_t *n)
     xcb_create_gc(dpy, white, bpid, XCB_GC_FOREGROUND, (uint32_t[]){1, 0});
 
 	// draw border mask 
-    xcb_rectangle_t bounding = {0, 0, w+2*bw, h+2*bw}; // entire window + border, offset in xcb_shape_mask
+    xcb_rectangle_t bounding = {0, 0, ow, oh}; // entire window + border, offset in xcb_shape_mask
+	
     xcb_poly_fill_rectangle(dpy, bpid, white, 1, &bounding);
 
-
-	uint16_t border_left = 0;
-	uint16_t border_right = 10;
-	uint16_t border_top = 0;
-	uint16_t border_bottom = 0;
-
-    xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,  win, 0, -bw, bpid); // applies mask to window border!
+    xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,  win, -border_left, -border_top, bpid); // applies mask to window border!
 
 
+	// not sure what this does yet, need more testing
     if (n->presel != NULL && n->presel != XCB_NONE) {
         xcb_window_t fb = n->presel->feedback;
         xcb_get_geometry_reply_t *fb_geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, fb), NULL);
@@ -674,7 +674,7 @@ bool resize_client(coordinates_t *loc, resize_handle_t rh, int dx, int dy, bool 
 		n->client->floating_rectangle = (xcb_rectangle_t) {x, y, width, height};
 		if (n->client->state == STATE_FLOATING) {
 			window_move_resize(n->id, x, y, width, height);
-				window_rounded_border(n);
+				window_customized_border(n);
 
 			if (!grabbing) {
 				put_status(SBSC_MASK_NODE_GEOMETRY, "node_geometry 0x%08X 0x%08X 0x%08X %ux%u+%i+%i\n", loc->monitor->id, loc->desktop->id, loc->node->id, width, height, x, y);
