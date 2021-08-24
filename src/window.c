@@ -432,8 +432,6 @@ void window_customized_border(node_t *n)
 	xcb_get_geometry_reply_t *geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, win), NULL);
     if (geo == NULL) return;
 	
-    uint16_t x  = geo->x;
-    uint16_t y  = geo->y;
 	uint16_t w  = geo->width;
     uint16_t h  = geo->height;
 
@@ -457,18 +455,6 @@ void window_customized_border(node_t *n)
     xcb_poly_fill_rectangle(dpy, bpid, white, 1, &bounding);
 
     xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,  win, -border_left, -border_top, bpid); // applies mask to window border!
-
-
-	// not sure what this does yet, need more testing
-    if (n->presel != NULL && n->presel != XCB_NONE) {
-        xcb_window_t fb = n->presel->feedback;
-        xcb_get_geometry_reply_t *fb_geo = xcb_get_geometry_reply(dpy, xcb_get_geometry(dpy, fb), NULL);
-
-        if (fb_geo != NULL) {
-            xcb_shape_mask(dpy, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING, fb, x-fb_geo->x, y-fb_geo->y, bpid);
-            free(fb_geo);
-        }
-    }
 
     xcb_free_pixmap(dpy, bpid);
 }
@@ -883,7 +869,7 @@ void disable_motion_recorder(void)
 
 void window_border_width(xcb_window_t win, uint32_t bw)
 {
-	uint32_t values[] = {10};
+	uint32_t values[] = {bw};
 	xcb_configure_window(dpy, win, XCB_CONFIG_WINDOW_BORDER_WIDTH, values);
 }
 
